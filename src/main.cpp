@@ -10,6 +10,13 @@ using namespace std;
 
 void setup() {
 
+  // Initialize strand LED
+  ledcSetup(LEDC_CHANNEL, LEDC_BASE_FREQ, LEDC_TIMER_BIT);
+  ledcAttachPin(PWM_LED_PIN, LEDC_CHANNEL);
+
+  // Setting the interrupt pin!!
+  attachInterrupt(digitalPinToInterrupt(Button_Pin), buttonISR, FALLING); 
+
   // Initialize button
   pinMode(Button_Pin, INPUT_PULLUP);
 
@@ -18,26 +25,39 @@ void setup() {
   StatusLight.setPixelColor(0, StatusLight.Color(10, 0, 0)); // Dim yellow light for boot verification (GRB)
   StatusLight.show(); 
 
-  // Initializing neopixel chains
-  Center_NeoPixel_Chain.begin();
-  Right_NeoPixel_Chain.begin();
   Left_NeoPixel_Chain.begin();
+  Left_NeoPixel_Chain.clear();
+  Left_NeoPixel_Chain.show();
+
+  Center_NeoPixel_Chain.begin();
+  Center_NeoPixel_Chain.clear();
+  Center_NeoPixel_Chain.show();
+
+  Right_NeoPixel_Chain.begin();
+  Right_NeoPixel_Chain.clear();
+  Right_NeoPixel_Chain.show();
+
+  
   
   // Turn on serial monitor
-  Serial.begin(9600);
+  Serial.begin(115200);
   Serial.println("System initializing...");
 
-  // Start with Pattern 1
-  setPattern(patternIndex);
+  setPattern(); 
 }
 
 // ======== Loop ========
 void loop() {
-  // Temporarily just applying TestPattern() here!
-  TestPattern()
+  if (lampSleep) {
+    setPattern();
+  }
+  static int lastPressCount = 0;
+  if (buttonInterrupt) {
+    buttonInterrupt = false;  // Reset flag
+
+    setPattern();
+  }
 
 
-  // Once done testing, uncomment the following to run button behavior
-  //handleButtonPress();
 }
 

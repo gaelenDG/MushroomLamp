@@ -1,42 +1,42 @@
-
-// ======== Includes ========
+#ifndef CONFIG_H
+#define CONFIG_H
 
 #include <Adafruit_NeoPixel.h>
-#include <vector>
 
-// ======== GPIO Pin definitions ========
 
-// Defining GPIO pins
-#define Left_NeoPixel_Pin 6
-#define Right_NeoPixel_Pin 5
-#define Center_NeoPixel_Pin 4
-#define Center_Strand_Pin 7
-#define Button_Pin 0
-#define BuiltIn_NeoPixel 10
+// ======== NeoPixel Declarations ========
+extern Adafruit_NeoPixel StatusLight;
+extern Adafruit_NeoPixel Center_NeoPixel_Chain;
+extern Adafruit_NeoPixel Left_NeoPixel_Chain;
+extern Adafruit_NeoPixel Right_NeoPixel_Chain;
 
-// ======== Neopixel chain definitions ========
+// ======== Button and Pattern Declarations ========
+extern int patternIndex;
+extern bool buttonPressed;
+extern unsigned long buttonPressTime;
+extern const int Button_Pin;  // GPIO pin for the button
+extern const int longPressDuration; // Long press duration in milliseconds
+extern const int LED_Strand; // GPIO pin for the strand LED
 
-Adafruit_NeoPixel StatusLight(1, BuiltIn_NeoPixel, NEO_GRB + NEO_KHZ800);
-Adafruit_NeoPixel Center_NeoPixel_Chain(3, Center_NeoPixel_Pin, NEO_RGBW + NEO_KHZ800);
-Adafruit_NeoPixel Left_NeoPixel_Chain(2, Left_NeoPixel_Pin, NEO_GRB + NEO_KHZ800);
-Adafruit_NeoPixel Right_NeoPixel_Chain(3, Right_NeoPixel_Pin, NEO_GRB + NEO_KHZ800);
+extern volatile unsigned long lastDebounceTime; // Stores last button press time
+extern const unsigned long debounceDelay;  // Minimum delay in ms to avoid multiple counts
+extern const int longPressDuration; // 2 seconds for long press
 
-// ======== Constants ========
+extern volatile bool buttonInterrupt;
+extern volatile bool lampSleep;
+extern volatile int buttonPressCount;  // Counter for button presses
+extern unsigned long pressStartTime;
+extern volatile unsigned long lastPressTime;
+extern bool buttonHeld;
 
-// A (very simple) map of the NeoPixels for adjacency
-vector<int> graph[8] = {
-  {1},
-  {0, 2},
-  {1, 3},
-  {2, 4},
-  {3, 5},
-  {4, 6},
-  {5, 7},
-  {6, 0}
-};
+// LED Strand config
+extern const int LEDC_CHANNEL;     // Use PWM channel 0
+extern const int LEDC_TIMER_BIT;   // 8-bit resolution (0-255)
+extern const int LEDC_BASE_FREQ; // 5 kHz frequency
+extern const int PWM_LED_PIN;      // GPIO pin for the LED
 
-// Initializing the button and its behavior
-int patternIndex = 1;  // Start with Pattern 1
-unsigned long buttonPressTime = 0;
-bool buttonPressed = false;
-const int longPressDuration = 2000; // 2 seconds for long press
+// Color options
+extern const int colorOptions[][3];  // Explicitly declare as a 2D array
+extern const int numColors;          // Declare numColors for access in other files
+
+#endif // CONFIG_H

@@ -3,41 +3,61 @@
 #include "helpers.h"
 #include "config.h"
 #include <Arduino.h>
+#include <Adafruit_NeoPixel.h>
 
 // ======== Helper functions ========
-
-void handleButtonPress();
-void cyclePatterns();
-void setPattern();
-void cyclePatterns();
-void enterDeepSleep();
-void lightPixel(int position, int Red, int Green, int Blue, int White);
 
 // Observe and perform button press actions
 // --- Either a short press, where push for switching pattern
 // --- Or a long press, where enter deep sleep
-void handleButtonPress() {
-  if (digitalRead(Button_Pin) == LOW) {
-    if (!buttonPressed) {
-      buttonPressed = true;
-      buttonPressTime = millis();
-    }
-  } else if (buttonPressed) {
-    unsigned long pressDuration = millis() - buttonPressTime;
-    buttonPressed = false;
 
-    if (pressDuration >= longPressDuration) {
-      enterDeepSleep();
-    } else {
-      cyclePatterns();
+
+// void handleButtonPress() {
+//   if (digitalRead(Button_Pin) == LOW) {
+//     if (!buttonPressed) {
+//       buttonPressed = true;
+//       buttonPressTime = millis();
+//     }
+//   } else if (buttonPressed) {
+//     unsigned long pressDuration = millis() - buttonPressTime;
+//     buttonPressed = false;
+
+//     if (pressDuration >= longPressDuration) {
+//       enterDeepSleep();
+//     } else {
+//       buttonInterrupt = true;  // Set the flag to indicate an interrupt
+//     }
+//   }
+// }
+
+void IRAM_ATTR buttonISR() {
+    unsigned long currentTime = millis();
+    
+    if (currentTime - lastPressTime > 100) {  // 100ms debounce
+        if (digitalRead(Button_Pin) == LOW) {  // Button press detected
+            pressStartTime = currentTime;    // Store when press started
+            buttonHeld = true;               // Flag button is being held
+        } 
+        else if (buttonHeld) {  // Button released
+            unsigned long pressDuration = currentTime - pressStartTime;
+            buttonHeld = false;  // Reset flag
+
+            if (pressDuration >= 2000) {  // Long press detected
+                lampSleep = true;   // Enter default/sleep mode
+                buttonPressCount = 0;
+            } 
+            else {  // Short press detected
+                buttonPressCount = (buttonPressCount + 1) % 5;
+                buttonInterrupt = true;
+            }
+        }
+        lastPressTime = currentTime;
     }
-  }
 }
 
-// Go to next pattern in cycle (four total, but can change)
-void cyclePatterns() {
-  patternIndex = (patternIndex % 4) + 1; // Cycle through 1-4
-  setPattern(patternIndex);
+// Function to check how many times the button was pressed
+int getButtonPresses() {
+    return buttonPressCount;
 }
 
 // Deep sleep
@@ -49,32 +69,38 @@ void enterDeepSleep() {
   esp_deep_sleep_start(); // Enter deep sleep
 }
 
+// Function to pick a random distinct color
+void pickRandomColor(int &r, int &g, int &b) {
+    int index = random(numColors);
+    r = colorOptions[index][0];
+    g = colorOptions[index][1];
+    b = colorOptions[index][2];
+}
+
 // Applies the appropriate pattern based on how many short button presses
-void setPattern(int patternIndex) {
+void setPattern() {
+  buttonInterrupt = false;
+  patternIndex = getButtonPresses();
   // Example light effects for each pattern
   switch (patternIndex) {
-    case 1:
-      TestPattern();
-
+    case 0:
+      DefaultPattern();
       break;
+
+    case 1:
+      Pattern1();
+      break;
+      
     case 2:
       // Example: Turn on only Left chain
-      Left_NeoPixel_Chain.fill(Left_NeoPixel_Chain.Color(0, 255, 0));
-      Left_NeoPixel_Chain.show();
+      Pattern2();
       break;
     case 3:
       // Example: Turn on only Right chain
-      Right_NeoPixel_Chain.fill(Right_NeoPixel_Chain.Color(0, 0, 255));
-      Right_NeoPixel_Chain.show();
+      Pattern3();
       break;
     case 4:
-      // Example: Turn all chains to white
-      Center_NeoPixel_Chain.fill(Center_NeoPixel_Chain.Color(255, 255, 255));
-      Left_NeoPixel_Chain.fill(Left_NeoPixel_Chain.Color(255, 255, 255));
-      Right_NeoPixel_Chain.fill(Right_NeoPixel_Chain.Color(255, 255, 255));
-      Center_NeoPixel_Chain.show();
-      Left_NeoPixel_Chain.show();
-      Right_NeoPixel_Chain.show();
+      Pattern4();
       break;
   }
 }
@@ -89,7 +115,11 @@ void lightPixel(int position, int Red, int Green, int Blue, int White) {
 
   if (position >= 0 && position < 2){
     chain = &Left_NeoPixel_Chain; // left chain
-    localPosition = position;
+    if (position == 0){
+      localPosition = 1;
+    } else {
+      localPosition = 0;
+    }
      color = chain->Color(Red, Green, Blue); // RGB pixel color assignment
 
   } else if (position >= 2 && position < 5) {
@@ -113,3 +143,7 @@ void lightPixel(int position, int Red, int Green, int Blue, int White) {
   }
 }
 
+// Control the lightStrand brightness with a PWM value between 0-255
+void lightStrand(int PWM) {
+  ledcWrite(LEDC_CHANNEL, PWM);
+}
