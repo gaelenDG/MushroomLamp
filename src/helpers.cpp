@@ -1,68 +1,88 @@
 // ======== Includes ========
-
+// Include necessary libraries for LED control and hardware interaction
 #include "helpers.h"
 #include "config.h"
 #include <Arduino.h>
 #include <Adafruit_NeoPixel.h>
 
-// ======== Helper functions ========
+// ======== Helper Functions ========
 
-// Observe and perform button press actions
-// --- Either a short press, where push for switching pattern
-// --- Or a long press, where enter deep sleep
-
+/*
+ * Interrupt Service Routine (ISR) for the capacitive touch button.
+ * Detects short and long presses:
+ * - Short press: Cycles through lighting patterns.
+ * - Long press (≥2 seconds): Enters deep sleep mode.
+ */
 void IRAM_ATTR buttonISR() {
     unsigned long currentTime = millis();
     
-    if (currentTime - lastPressTime > 100) {  // 100ms debounce
+    // Debounce to prevent rapid, unintentional triggers
+    if (currentTime - lastPressTime > 100) {  
         if (digitalRead(Button_Pin) == LOW) {  // Button press detected
             pressStartTime = currentTime;    // Store when press started
-            buttonHeld = true;               // Flag button is being held
+            buttonHeld = true;               // Mark button as being held
         } 
         else if (buttonHeld) {  // Button released
             unsigned long pressDuration = currentTime - pressStartTime;
             buttonHeld = false;  // Reset flag
 
-            if (pressDuration >= 2000) {  // Long press detected
-                lampSleep = true;   // Enter default/sleep mode
-                buttonPressCount = 0;
+            if (pressDuration >= 2000) {  // Long press detected (2+ seconds)
+                lampSleep = true;   // Enter sleep mode
+                buttonPressCount = 0;  // Reset press count
             } 
             else {  // Short press detected
-                buttonPressCount = (buttonPressCount + 1) % 5;
-                buttonInterrupt = true;
+                buttonPressCount = (buttonPressCount + 1) % 5;  // Cycle through 5 patterns
+                buttonInterrupt = true;  // Flag that a press occurred
             }
         }
-        lastPressTime = currentTime;
+        lastPressTime = currentTime;  // Update last press timestamp
     }
 }
 
-// Function to check how many times the button was pressed
+/*
+ * Retrieves the current button press count.
+ * Used to determine which LED pattern to display.
+ * @return The number of short button presses since last reset.
+ */
 int getButtonPresses() {
     return buttonPressCount;
 }
 
-// Deep sleep
-// !! Will need to add functionality for waking up!!
+/*
+ * Puts the ESP32 into deep sleep mode.
+ * !! Future enhancement: Add functionality for wake-up !!
+ */
 void enterDeepSleep() {
-  StatusLight.setPixelColor(0, StatusLight.Color(0, 0, 10)); // Dim blue light before sleep
+  // Indicate sleep entry with a dim blue status light
+  StatusLight.setPixelColor(0, StatusLight.Color(0, 0, 10)); 
   StatusLight.show();
   delay(500);
-  esp_deep_sleep_start(); // Enter deep sleep
+
+  esp_deep_sleep_start(); // Enter deep sleep mode
 }
 
-// Function to pick a random distinct color
+/*
+ * Selects a random color from a predefined list.
+ * @param r Reference to red value (0-255)
+ * @param g Reference to green value (0-255)
+ * @param b Reference to blue value (0-255)
+ */
 void pickRandomColor(int &r, int &g, int &b) {
-    int index = random(numColors);
+    int index = random(numColors);  // Pick random index from available colors
     r = colorOptions[index][0];
     g = colorOptions[index][1];
     b = colorOptions[index][2];
 }
 
-// Applies the appropriate pattern based on how many short button presses
+/*
+ * Determines and applies the appropriate LED pattern based on button presses.
+ * - Pattern 0: Default mode
+ * - Pattern 1-4: Various lighting sequences
+ */
 void setPattern() {
-  buttonInterrupt = false;
-  patternIndex = getButtonPresses();
-  // Applies a pattern for the number of button presses counted (mod5, so cycles through all patterns)
+  buttonInterrupt = false;  // Reset button interrupt flag
+  patternIndex = getButtonPresses();  // Get press count to determine pattern
+
   switch (patternIndex) {
     case 0:
       DefaultPattern();
@@ -82,45 +102,52 @@ void setPattern() {
   }
 }
 
-// Lights a specified pixel with the input color pattern 
+/*
+ * Lights up a specific NeoPixel at a given position with a specified color.
+ * Supports RGB (or RGBW for center chain).
+ * @param position The pixel position (0-7) across all chains.
+ * @param Red Red brightness (0-255)
+ * @param Green Green brightness (0-255)
+ * @param Blue Blue brightness (0-255)
+ * @param White White brightness (0-255) (only for center chain)
+ */
 void lightPixel(int position, int Red, int Green, int Blue, int White) {
+  Adafruit_NeoPixel* chain = nullptr;  // Pointer to correct LED chain
+  int localPosition = 0;  // Pixel index within the selected chain
+  uint32_t color = 0;  // Store calculated color
 
-  // Determine which chain and pixel to light up
-  Adafruit_NeoPixel* chain = nullptr; // Pointer to the correct chain, once determined
-  int localPosition = 0; // Pixel index within the selected chain
-  uint32_t color = 0;  // Store the calculated color
-
-  if (position >= 0 && position < 2){
-    chain = &Left_NeoPixel_Chain; // left chain
-    if (position == 0){
-      localPosition = 1;
-    } else {
-      localPosition = 0;
-    }
-     color = chain->Color(Red, Green, Blue); // RGB pixel color assignment
+  if (position >= 0 && position < 2) {
+    chain = &Left_NeoPixel_Chain;
+    localPosition = (position == 0) ? 1 : 0;  // Swap positions for alignment
+    color = chain->Color(Red, Green, Blue);  
 
   } else if (position >= 2 && position < 5) {
-    chain = &Center_NeoPixel_Chain; // center chain
-    localPosition = position - 2; // adjusting position for now being in the 2, 3, or 4 spot
-    color = chain->Color(Red, Green, Blue, White); // RGB pixel color assignment
+    chain = &Center_NeoPixel_Chain;
+    localPosition = position - 2;  // Adjust for center chain index
+    color = chain->Color(Red, Green, Blue, White);  // Center supports RGBW
 
   } else if (position >= 5 && position <= 7) {
     chain = &Right_NeoPixel_Chain;
-    localPosition = position - 5; // adjusting position for now being in the 5, 6, 0r 7 spot
-    color = chain->Color(Red, Green, Blue); // RGB pixel color assignment
-  }
+    localPosition = position - 5;  // Adjust for right chain index
+    color = chain->Color(Red, Green, Blue);  
 
-  if (chain) { // if a valid chain is selected
-    chain->setPixelColor(localPosition, color);
-    chain->show();
   } else {
-    // Handle invalid positions
     Serial.print("Invalid position: ");
     Serial.println(position);
+    return;  // Exit function if position is out of range
+  }
+
+  // If a valid chain is assigned, apply the color and update LEDs
+  if (chain) {
+    chain->setPixelColor(localPosition, color);
+    chain->show();
   }
 }
 
-// Control the lightStrand brightness with a PWM value between 0-255
+/*
+ * Sets the brightness of the LED strand using PWM.
+ * @param PWM A value between 0 (off) and 255 (full brightness)
+ */
 void lightStrand(int PWM) {
-  ledcWrite(LEDC_CHANNEL, PWM);
+  ledcWrite(LEDC_CHANNEL, PWM);  // Apply PWM value to LED strand
 }
