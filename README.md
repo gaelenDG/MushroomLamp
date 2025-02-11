@@ -48,26 +48,28 @@ cd MushroomLamp
 
 ```
 led-lamp/
+│── include/
+│   ├── config.h        # Pin definitions and settings
+│   ├── helpers.h				# Function prototypes
 │── src/
 │   ├── main.cpp        # Handles setup and main loop
 │   ├── patterns.cpp    # LED pattern functions
-│   ├── touch_input.cpp # Touch sensor interrupt handling
-│   ├── config.h        # Pin definitions and settings
+│   ├── config.cpp      # Pin definitions and settings, global variables, constant definitions
+│   ├── helpers.cpp		  # Helper functions to enable button press recognition and simple application of light patterns
 │── platformio.ini      # PlatformIO project configuration
 │── README.md           # Project documentation
 ```
 
 ## Demo photos and video
 
-
 ![Wiring neopixel chains on the left and right sides of the base.](/DemoMedia/IMG_4222.png)
 
 ![Testing NeoPixel chains on the left and right side of the base.](/DemoMedia/IMG_4220.png)
 
 
-![Testing light patterns with center mushroom wired in place.](/DemoMedia/IMG_4231.mp4)
+![Testing light patterns with center mushroom wired in place.](/DemoMedia/IMG_4231_480p.mp4)
 
-![Testing button debounce.](/DemoMedia/IMG_4244.mp4)
+![Testing button debounce.](/DemoMedia/IMG_4244_480p.mp4)
 
 
 ## Future improvements
