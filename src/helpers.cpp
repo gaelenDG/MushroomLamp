@@ -11,25 +11,6 @@
 // --- Either a short press, where push for switching pattern
 // --- Or a long press, where enter deep sleep
 
-
-// void handleButtonPress() {
-//   if (digitalRead(Button_Pin) == LOW) {
-//     if (!buttonPressed) {
-//       buttonPressed = true;
-//       buttonPressTime = millis();
-//     }
-//   } else if (buttonPressed) {
-//     unsigned long pressDuration = millis() - buttonPressTime;
-//     buttonPressed = false;
-
-//     if (pressDuration >= longPressDuration) {
-//       enterDeepSleep();
-//     } else {
-//       buttonInterrupt = true;  // Set the flag to indicate an interrupt
-//     }
-//   }
-// }
-
 void IRAM_ATTR buttonISR() {
     unsigned long currentTime = millis();
     
@@ -81,22 +62,18 @@ void pickRandomColor(int &r, int &g, int &b) {
 void setPattern() {
   buttonInterrupt = false;
   patternIndex = getButtonPresses();
-  // Example light effects for each pattern
+  // Applies a pattern for the number of button presses counted (mod5, so cycles through all patterns)
   switch (patternIndex) {
     case 0:
       DefaultPattern();
       break;
-
     case 1:
       Pattern1();
       break;
-      
     case 2:
-      // Example: Turn on only Left chain
       Pattern2();
       break;
     case 3:
-      // Example: Turn on only Right chain
       Pattern3();
       break;
     case 4:
